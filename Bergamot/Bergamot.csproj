@@ -44,9 +44,11 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Extensions\PointExtensions.cs" />
     <Compile Include="NonConvexHullGeneration\NonConvexHull.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="DataStructures\Segment.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />
