@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
 using Bergamot.DataStructures;
@@ -27,7 +28,7 @@ namespace Bergamot.NonConvexHullGeneration
                     nextStep = GoRight(nextStep);
                     next = next.Add(nextStep);
                 } else {
-                    boundaryPoints.Add(next);
+                    boundaryPoints.Add(OffsetFromBorder(next, image));
                     nextStep = GoLeft(nextStep);
                     next = next.Add(nextStep);
                 }
@@ -37,6 +38,35 @@ namespace Bergamot.NonConvexHullGeneration
 
         private static Point GoLeft(Point p) => new Point(p.Y, -p.X);
         private static Point GoRight(Point p) => new Point(-p.Y, p.X);
+
+        private static Point[] directions = new[] {
+            new Point(-1, 0), new Point(-1, -1), new Point(0, -1), new Point(1, -1),
+            new Point(1, 0), new Point(1, 1), new Point(0, 1), new Point(1, 1),    
+        };
+
+        private static Point OffsetFromBorder(Point p, Bitmap image)
+        {
+            double dx = 0, dy = 0;
+            for (int i = 0; i < directions.Length; ++i) {
+                var d = directions[i];
+                var affectPoint = p.Sub(d);
+                if (
+                    affectPoint.X < 0 || affectPoint.X >= image.Width || 
+                    affectPoint.Y < 0 || affectPoint.Y >= image.Height
+                ) {
+                    continue;
+                }
+                dx += d.X * (image.GetPixel(affectPoint.X, affectPoint.Y).A / 100f);
+                dy += d.Y * (image.GetPixel(affectPoint.X, affectPoint.Y).A / 100f);
+            }
+            while (image.GetPixel(p.X + (int) Math.Ceiling(dx), p.Y + (int) Math.Ceiling(dy)).A != 0 && 
+                   (Math.Abs(dx) > double.Epsilon || Math.Abs(dy) > double.Epsilon)) {
+                dx /= 2;
+                dy /= 2;
+            }
+            
+            return p.Clamp(0, image.Width - 1, 0, image.Height - 1);
+        }
 
         public static Point GetStartPoint(Bitmap bitmap)
         {
