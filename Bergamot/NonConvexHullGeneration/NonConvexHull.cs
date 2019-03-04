@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using Bergamot.DataStructures;
@@ -28,7 +29,7 @@ namespace Bergamot.NonConvexHullGeneration
                     nextStep = GoRight(nextStep);
                     next = next.Add(nextStep);
                 } else {
-                    boundaryPoints.Add(OffsetFromBorder(next, image));
+                    boundaryPoints.Add(next.Clamp(0, image.Width - 1, 0, image.Height - 1));
                     nextStep = GoLeft(nextStep);
                     next = next.Add(nextStep);
                 }
@@ -38,35 +39,6 @@ namespace Bergamot.NonConvexHullGeneration
 
         private static Point GoLeft(Point p) => new Point(p.Y, -p.X);
         private static Point GoRight(Point p) => new Point(-p.Y, p.X);
-
-        private static Point[] directions = new[] {
-            new Point(-1, 0), new Point(-1, -1), new Point(0, -1), new Point(1, -1),
-            new Point(1, 0), new Point(1, 1), new Point(0, 1), new Point(1, 1),    
-        };
-
-        private static Point OffsetFromBorder(Point p, Bitmap image)
-        {
-            double dx = 0, dy = 0;
-            for (int i = 0; i < directions.Length; ++i) {
-                var d = directions[i];
-                var affectPoint = p.Sub(d);
-                if (
-                    affectPoint.X < 0 || affectPoint.X >= image.Width || 
-                    affectPoint.Y < 0 || affectPoint.Y >= image.Height
-                ) {
-                    continue;
-                }
-                dx += d.X * (image.GetPixel(affectPoint.X, affectPoint.Y).A / 100f);
-                dy += d.Y * (image.GetPixel(affectPoint.X, affectPoint.Y).A / 100f);
-            }
-            while (image.GetPixel(p.X + (int) Math.Ceiling(dx), p.Y + (int) Math.Ceiling(dy)).A != 0 && 
-                   (Math.Abs(dx) > double.Epsilon || Math.Abs(dy) > double.Epsilon)) {
-                dx /= 2;
-                dy /= 2;
-            }
-            
-            return p.Clamp(0, image.Width - 1, 0, image.Height - 1);
-        }
 
         public static Point GetStartPoint(Bitmap bitmap)
         {
@@ -80,12 +52,38 @@ namespace Bergamot.NonConvexHullGeneration
             return new Point(-1, -1);
         }
 
+        private static (List<Segment>, List<int>) UpdateHull(Bitmap image, List<Point> boundaries, List<Segment> segments, List<int> startIndexes)
+        {
+            var updatedSegments = new List<Segment>();
+            var updatedIndexes = new List<int>();
+            int cur = 0;
+            int merge = 1;
+            int j = 0;
+            while (merge < segments.Count) {
+                if (!SegmentIntersectBoundaries(boundaries, startIndexes[cur], startIndexes[merge])) {
+                    segments[cur] = new Segment(segments[cur].A, segments[merge++].A);
+                } else {
+                    updatedSegments.Add(segments[cur]);
+                    updatedIndexes.Add(startIndexes[cur]);
+                    cur = merge - 1;
+                }
+            }
+            while (cur < segments.Count) {
+                updatedSegments.Add(segments[cur]);
+                updatedIndexes.Add(startIndexes[cur++]);
+            }
+            for (int i = 1; i < updatedSegments.Count; i++) {
+                Debug.Assert(updatedSegments[i].A == updatedSegments[i - 1].B);
+            }
+            Debug.Assert(updatedSegments[updatedSegments.Count - 1].B == updatedSegments[0].A);
+            return (updatedSegments, updatedIndexes);
+        }
+
         public static List<Segment> GetNonConvexHull(Bitmap image)
         {
             var segments = new List<Segment>();
             var segmentStartIndexes = new List<int>();
             var cloud = GetBoundaries(image).Distinct().ToList();
-            var pivot = cloud[0];
             int pivotIndex = 0;
             for (int i = 2; i < cloud.Count; ++i) {
                 if (
@@ -100,6 +98,14 @@ namespace Bergamot.NonConvexHullGeneration
                     pivotIndex = i;
                 }
             }
+            segments.Add(new Segment(segments[segments.Count - 1].B, segments[0].A));
+            segmentStartIndexes.Add(cloud.Count - 1);
+            Debug.Assert(segments[segments.Count - 1].B == segments[0].A);
+            int prev;
+            do {
+                prev = segments.Count;
+                (segments, segmentStartIndexes) = UpdateHull(image, cloud, segments, segmentStartIndexes);
+            } while (prev != segments.Count);
             return segments;
         }
 
@@ -112,7 +118,7 @@ namespace Bergamot.NonConvexHullGeneration
                 C = start.X * end.Y - end.X * start.Y;
             for (int i = startIndex + 1; i < endIndex; ++i) {
                 var p = boundaries[i];
-                if (A * p.X + B * p.Y + C < 0) {
+                if (A * p.X + B * p.Y + C <= -1) {
                     return true;
                 }
             }
