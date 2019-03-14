@@ -68,6 +68,9 @@ namespace Bergamot.NonConvexHullGeneration
                     cur = merge - 1;
                 }
             }
+            updatedSegments.Add(segments[cur]);
+            updatedIndexes.Add(startIndexes[cur]);
+            cur = merge - 1;
             while (cur < segments.Count) {
                 updatedSegments.Add(segments[cur]);
                 updatedIndexes.Add(startIndexes[cur++]);
@@ -77,6 +80,26 @@ namespace Bergamot.NonConvexHullGeneration
             }
             Debug.Assert(updatedSegments[updatedSegments.Count - 1].B == updatedSegments[0].A);
             return (updatedSegments, updatedIndexes);
+        }
+
+        public static List<Point> GetExtremumPoints(Bitmap image)
+        {
+            var cloud = GetBoundaries(image);
+            var res = new List<Point>();
+            for (int i = 0; i < cloud.Count - 1; ++i) {
+                var current = cloud[i];
+                var next = cloud[i + 1];
+                var fx = current.X == next.X
+                    ? 0
+                    : (image.GetPixel(next.X, next.Y).Diff(image.GetPixel(current.X, current.Y))) / Math.Abs(next.X - current.X);
+                var fy = current.Y == next.Y
+                    ? 0
+                    : (image.GetPixel(next.X, next.Y).Diff(image.GetPixel(current.X, current.Y))) / Math.Abs(next.Y - current.Y);
+                if (Math.Abs(fx) < 1 && Math.Abs(fy) < 1) {
+                    res.Add(next);
+                }
+            }
+            return res;
         }
 
         public static List<Segment> GetNonConvexHull(Bitmap image)
