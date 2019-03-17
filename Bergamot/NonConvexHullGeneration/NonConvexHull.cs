@@ -26,6 +26,7 @@ namespace Bergamot.NonConvexHullGeneration
             var boundaryPoints = new List<Point> { start };
             Point nextStep = GoLeft(new Point(1, 0));
             Point next = start.Add(nextStep);
+            HashSet<Point> used = new HashSet<Point> {start};
             while (next != start) {
                 if (
                     (next.X < 0 || next.Y < 0 || next.X >= image.Width || next.Y >= image.Height) ||
@@ -34,7 +35,10 @@ namespace Bergamot.NonConvexHullGeneration
                     nextStep = GoRight(nextStep);
                     next = next.Add(nextStep);
                 } else {
-                    boundaryPoints.Add(next.Clamp(0, image.Width - 1, 0, image.Height - 1));
+                    if (!used.Contains(next = next.Clamp(0, image.Width - 1, 0, image.Height - 1))) {
+                        boundaryPoints.Add(next);
+                        used.Add(next);
+                    }
                     nextStep = GoLeft(nextStep);
                     next = next.Add(nextStep);
                 }
@@ -63,7 +67,6 @@ namespace Bergamot.NonConvexHullGeneration
             var updatedIndexes = new List<int>();
             int cur = 0;
             int merge = 1;
-            int j = 0;
             while (merge < segments.Count) {
                 if (!SegmentIntersectBoundaries(boundaries, startIndexes[cur], startIndexes[merge])) {
                     segments[cur] = new Segment(segments[cur].A, segments[merge++].A);
@@ -141,32 +144,31 @@ namespace Bergamot.NonConvexHullGeneration
             return (start, end, diff);
         }
 
-        public static List<Segment> GetNonConvexHull(Bitmap image)
+        public static List<Segment> GetNonConvexHull(Bitmap image, List<Point> boundaries)
         {
             var segments = new List<Segment>();
             var segmentStartIndexes = new List<int>();
-            var cloud = GetBoundaries(image).Distinct().ToList();
             int pivotIndex = 0;
-            for (int i = 1; i < cloud.Count; ++i) {
+            for (int i = 1; i < boundaries.Count; ++i) {
                 if (
                     segments.Count > 0 &&
-                    !SegmentIntersectBoundaries(cloud, segmentStartIndexes[segmentStartIndexes.Count - 1], i)
+                    !SegmentIntersectBoundaries(boundaries, segmentStartIndexes[segmentStartIndexes.Count - 1], i)
                  ) {
-                    segments[segments.Count - 1] = new Segment(segments[segments.Count - 1].A, cloud[i]);
+                    segments[segments.Count - 1] = new Segment(segments[segments.Count - 1].A, boundaries[i]);
                     pivotIndex = i;
-                } else if (!SegmentIntersectBoundaries(cloud, pivotIndex, i)) {
-                    segments.Add(new Segment(cloud[pivotIndex], cloud[i]));
+                } else if (!SegmentIntersectBoundaries(boundaries, pivotIndex, i)) {
+                    segments.Add(new Segment(boundaries[pivotIndex], boundaries[i]));
                     segmentStartIndexes.Add(pivotIndex);
                     pivotIndex = i;
                 }
             }
             segments.Add(new Segment(segments[segments.Count - 1].B, segments[0].A));
-            segmentStartIndexes.Add(cloud.Count - 1);
+            segmentStartIndexes.Add(boundaries.Count - 1);
             Debug.Assert(segments[segments.Count - 1].B == segments[0].A);
             int prev;
             do {
                 prev = segments.Count;
-                (segments, segmentStartIndexes) = UpdateHull(image, cloud, segments, segmentStartIndexes);
+                (segments, segmentStartIndexes) = UpdateHull(image, boundaries, segments, segmentStartIndexes);
             } while (prev != segments.Count);
             return segments;
         }
