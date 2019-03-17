@@ -6,6 +6,11 @@ using System.Linq;
 using Bergamot.DataStructures;
 using Bergamot.Extensions;
 
+public enum FiniteDifferenceType
+{
+    Left, Right, Central
+}
+
 namespace Bergamot.NonConvexHullGeneration
 {
     public static class NonConvexHull
@@ -82,24 +87,58 @@ namespace Bergamot.NonConvexHullGeneration
             return (updatedSegments, updatedIndexes);
         }
 
-        public static List<Point> GetExtremumPoints(Bitmap image)
+        public static List<Point> GetExtremumPoints(Bitmap image, FiniteDifferenceType fdt = FiniteDifferenceType.Right)
         {
             var cloud = GetBoundaries(image);
             var res = new List<Point>();
-            for (int i = 0; i < cloud.Count - 1; ++i) {
-                var current = cloud[i];
-                var next = cloud[i + 1];
-                var fx = current.X == next.X
-                    ? 0
-                    : (image.GetPixel(next.X, next.Y).Diff(image.GetPixel(current.X, current.Y))) / Math.Abs(next.X - current.X);
-                var fy = current.Y == next.Y
-                    ? 0
-                    : (image.GetPixel(next.X, next.Y).Diff(image.GetPixel(current.X, current.Y))) / Math.Abs(next.Y - current.Y);
-                if (Math.Abs(fx) < 1 && Math.Abs(fy) < 1) {
-                    res.Add(next);
+            var (start, end, diff) = GetExtremumPointsHelper(image, cloud, fdt);
+            for (int i = start; i < end; ++i) {
+                var (fx, fy) = diff(i);
+                if (Math.Abs(fx) <= 1 && Math.Abs(fy) <= 1) {
+                    res.Add(cloud[i]);
                 }
             }
             return res;
+        }
+
+        private static (int, int, Func<int, (int, int)>) GetExtremumPointsHelper(Bitmap image, List<Point> points, FiniteDifferenceType fdt)
+        {
+            var start = fdt == FiniteDifferenceType.Right ? 0 : 1;
+            var end = fdt == FiniteDifferenceType.Left ? points.Count - 1 : points.Count - 2;
+            Func<int, (int, int)> diff;
+            switch (fdt) {
+                case FiniteDifferenceType.Right:
+                    diff = i => {
+                        Point p1 = points[i], p2 = points[i + 1];
+                        return (
+                            p1.X == p2.X ? 0 : image.GetPixel(p2.X, p2.Y).Diff(image.GetPixel(p1.X, p1.Y)) / Math.Abs(p2.X - p1.X),
+                            p1.Y == p2.Y ? 0 : image.GetPixel(p2.Y, p2.Y).Diff(image.GetPixel(p1.Y, p1.Y)) / Math.Abs(p2.Y - p1.Y)
+                        );
+                    };
+                    break;
+                case FiniteDifferenceType.Left:
+                    diff = i => {
+                        Point p1 = points[i - 1], p2 = points[i];
+                        return (
+                            p1.X == p2.X ? 0 : image.GetPixel(p2.X, p2.Y).Diff(image.GetPixel(p1.X, p1.Y)) / Math.Abs(p2.X - p1.X),
+                            p1.Y == p2.Y ? 0 : image.GetPixel(p2.Y, p2.Y).Diff(image.GetPixel(p1.Y, p1.Y)) / Math.Abs(p2.Y - p1.Y)
+                        );
+                    };
+                    break;
+                case FiniteDifferenceType.Central:
+                    diff = i => {
+                        Point p1 = points[i - 1], p2 = points[i + 1];
+                        return (
+                            p1.X == p2.X ? 0 : image.GetPixel(p2.X, p2.Y).Diff(image.GetPixel(p1.X, p1.Y)) / (2 * Math.Abs(p2.X - p1.X)),
+                            p1.Y == p2.Y ? 0 : image.GetPixel(p2.Y, p2.Y).Diff(image.GetPixel(p1.Y, p1.Y)) / (2 * Math.Abs(p2.Y - p1.Y))
+                        );
+                    };
+                    break;
+                default:
+                    diff = null;
+                    break;
+            }
+            return (start, end, diff);
         }
 
         public static List<Segment> GetNonConvexHull(Bitmap image)
@@ -108,7 +147,7 @@ namespace Bergamot.NonConvexHullGeneration
             var segmentStartIndexes = new List<int>();
             var cloud = GetBoundaries(image).Distinct().ToList();
             int pivotIndex = 0;
-            for (int i = 2; i < cloud.Count; ++i) {
+            for (int i = 1; i < cloud.Count; ++i) {
                 if (
                     segments.Count > 0 &&
                     !SegmentIntersectBoundaries(cloud, segmentStartIndexes[segmentStartIndexes.Count - 1], i)
