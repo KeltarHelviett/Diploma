@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Linq;
 using Bergamot.DataStructures;
 using Bergamot.Extensions;
 
@@ -184,6 +183,41 @@ namespace Bergamot.NonConvexHullGeneration
                 var p = boundaries[i];
                 if (A * p.X + B * p.Y + C <= -1) {
                     return true;
+                }
+            }
+            return false;
+        }
+
+        public static bool BresenhamSegmentIntersectsImage(Bitmap image, Point p1, Point p2)
+        {
+            int w = p2.X - p1.X;
+            int h = p2.Y - p1.Y;
+            int dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0;
+            dx1 = w < 0 ? -1 : w > 0 ? 1 : 0;
+            dy1 = h < 0 ? -1 : h > 0 ? 1 : 0;
+            dx2 = w < 0 ? -1 : w > 0 ? 1 : 0;
+            int longest = Math.Abs(w);
+            int shortest = Math.Abs(h);
+            if (longest <= shortest) {
+                longest = Math.Abs(h);
+                shortest = Math.Abs(w);
+                dy2 = h < 0 ? -1 : h > 0 ? 1 : 0;
+                dx2 = 0;
+            }
+            int numerator = longest >> 1;
+            var cur = p1;
+            for (int i = 0; i <= longest; i++) {
+                if (image.GetPixel(cur.X, cur.Y).A != 0) {
+                    return true;
+                }
+                numerator += shortest;
+                if (numerator >= longest) {
+                    numerator -= longest;
+                    cur.X += dx1;
+                    cur.Y += dy1;
+                } else {
+                    cur.X += dx2;
+                    cur.Y += dy2;
                 }
             }
             return false;
