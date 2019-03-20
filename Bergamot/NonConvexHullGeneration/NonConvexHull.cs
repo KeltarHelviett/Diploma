@@ -150,7 +150,7 @@ namespace Bergamot.NonConvexHullGeneration
                 if (
                     segments.Count > 0 &&
                     !SegmentIntersectBoundaries(boundaries, segmentStartIndexes[segmentStartIndexes.Count - 1], i)
-                 ) {
+                ) {
                     segments[segments.Count - 1] = new Segment(segments[segments.Count - 1].A, boundaries[i]);
                     pivotIndex = i;
                 } else if (!SegmentIntersectBoundaries(boundaries, pivotIndex, i)) {
@@ -186,14 +186,14 @@ namespace Bergamot.NonConvexHullGeneration
             return false;
         }
 
-        public static bool BresenhamSegmentIntersectsImage(Bitmap image, Point p1, Point p2)
+        public static bool BresenhamSegmentIntersectsSprite(Bitmap image, Point p1, Point p2)
         {
             int w = p2.X - p1.X;
             int h = p2.Y - p1.Y;
-            int dx1 = 0, dy1 = 0, dx2 = 0, dy2 = 0;
-            dx1 = w < 0 ? -1 : w > 0 ? 1 : 0;
-            dy1 = h < 0 ? -1 : h > 0 ? 1 : 0;
-            dx2 = w < 0 ? -1 : w > 0 ? 1 : 0;
+            int dy2 = 0;
+            var dx1 = w < 0 ? -1 : w > 0 ? 1 : 0;
+            var dy1 = h < 0 ? -1 : h > 0 ? 1 : 0;
+            var dx2 = w < 0 ? -1 : w > 0 ? 1 : 0;
             int longest = Math.Abs(w);
             int shortest = Math.Abs(h);
             if (longest <= shortest) {
@@ -205,7 +205,7 @@ namespace Bergamot.NonConvexHullGeneration
             int numerator = longest >> 1;
             var cur = p1;
             for (int i = 0; i <= longest; i++) {
-                if (image.GetPixel(cur.X, cur.Y).A != 0) {
+                if (image.GetPixel(cur.X, cur.Y).A != 0 && cur != p1 && cur != p2) {
                     return true;
                 }
                 numerator += shortest;
