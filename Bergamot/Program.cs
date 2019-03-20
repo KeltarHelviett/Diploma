@@ -19,6 +19,13 @@ namespace Bergamot
             }
         }
 
+        public static void ShowBoundaries(Bitmap image, List<Point> boundaries, Color color)
+        {
+            foreach (var point in boundaries) {
+                image.SetPixel(point.X, point.Y, color);
+            }
+        }
+
         static void Main(string[] args)
         {
             Parser.Default.ParseArguments<Options>(args).WithParsed(options => {
@@ -34,6 +41,9 @@ namespace Bergamot
                     : NonConvexHull.GetExtremumPoints(image, options.FiniteDifferenceType);
                 var hull = NonConvexHull.GetNonConvexHull(image, boundaries);
                 ShowHull(image, hull, new Pen(Color.DarkSalmon, 1));
+                if (options.ShowBoundaries) {
+                    ShowBoundaries(image, boundaries, Color.BlueViolet);
+                }
                 image.Save(options.Output ?? $"{Path.Combine(Path.GetDirectoryName(options.Filename) ?? "", "out_" + Path.GetFileName(options.Filename))}");
             });
         }

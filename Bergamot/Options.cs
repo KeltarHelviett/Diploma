@@ -23,5 +23,8 @@ namespace Bergamot
 
         [Option('o', "output")]
         public string Output { get; set; }
+
+        [Option("show-boundaries", Default = false, HelpText = "Show boundaries that were constructed by the algorithm")]
+        public bool ShowBoundaries { get; set; }
     }
 }
