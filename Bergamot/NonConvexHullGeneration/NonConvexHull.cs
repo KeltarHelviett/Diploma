@@ -43,6 +43,39 @@ namespace Bergamot.NonConvexHullGeneration
             return boundaryPoints;
         }
 
+        public static List<Point> TheoPavlidisTrace(Bitmap image)
+        {
+            var start = GetStartPoint(image);
+            Point current = start, next;
+            var boundaries = new List<Point>(image.Height * 2 + image.Width + 2) { start };
+            var used = new HashSet<Point>();
+            var direction = new Point(0, -1);
+            var rotationTimes = 0;
+            do {
+                var ahead = current.Add(direction);
+                if (image.TryGetPixel(next = ahead.Add(GoLeft(direction)), out var c) && c.A != 0) {
+                    current = next;
+                    direction = GoLeft(direction);
+                } else if (image.TryGetPixel(ahead.X, ahead.Y, out c) && c.A != 0) {
+                    current = ahead;
+                } else if (image.TryGetPixel(next = current.Add(GoRight(direction)).Add(GoLeft(GoRight(direction))), out c) && c.A != 0) {
+                    current = next;
+                    direction = GoLeft(GoRight(direction));
+                } else if (++rotationTimes == 4) {
+                    return boundaries;
+                } else {
+                    direction = GoRight(direction);
+                    continue;
+                }
+                if (!used.Contains(current) && !IsIsolated(current, image)) {
+                    boundaries.Add(current);
+                    used.Add(current);
+                }
+                rotationTimes = 0;
+            } while (current != start);
+            return boundaries;
+        }
+
         private static Point GoLeft(Point p) => new Point(p.Y, -p.X);
         private static Point GoRight(Point p) => new Point(-p.Y, p.X);
 
