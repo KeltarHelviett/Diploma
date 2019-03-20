@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Drawing.Drawing2D;
 using Bergamot.DataStructures;
 using Bergamot.Extensions;
 
@@ -25,16 +26,13 @@ namespace Bergamot.NonConvexHullGeneration
             var boundaryPoints = new List<Point> { start };
             Point nextStep = GoLeft(new Point(1, 0));
             Point next = start.Add(nextStep);
-            HashSet<Point> used = new HashSet<Point> {start};
+            var used = new HashSet<Point> {start};
             while (next != start) {
-                if (
-                    (next.X < 0 || next.Y < 0 || next.X >= image.Width || next.Y >= image.Height) ||
-                    image.GetPixel(next.X, next.Y).A == 0
-                ) {
+                if (!image.TryGetPixel(next.X, next.Y, out var c) || c.A == 0) {
                     nextStep = GoRight(nextStep);
                     next = next.Add(nextStep);
                 } else {
-                    if (!used.Contains(next = next.Clamp(0, image.Width - 1, 0, image.Height - 1))) {
+                    if (!used.Contains(next = next.Clamp(0, image.Width - 1, 0, image.Height - 1)) && !IsIsolated(next, image)) {
                         boundaryPoints.Add(next);
                         used.Add(next);
                     }
@@ -221,6 +219,18 @@ namespace Bergamot.NonConvexHullGeneration
                 }
             }
             return false;
+        }
+
+        private static bool IsIsolated(Point p, Bitmap image)
+        {
+            return (!image.TryGetPixel(p.X + 1, p.Y - 1, out var c) || c.A == 0 ? 1 : 0) +
+                   (!image.TryGetPixel(p.X + 1, p.Y, out c) || c.A == 0 ? 1 : 0) +
+                   (!image.TryGetPixel(p.X + 1, p.Y + 1, out c) || c.A == 0 ? 1 : 0) +
+                   (!image.TryGetPixel(p.X, p.Y - 1, out c) || c.A == 0 ? 1 : 0) +
+                   (!image.TryGetPixel(p.X, p.Y + 1, out c) || c.A == 0 ? 1 : 0) +
+                   (!image.TryGetPixel(p.X - 1, p.Y - 1, out c) || c.A == 0 ? 1 : 0) +
+                   (!image.TryGetPixel(p.X - 1, p.Y, out c) || c.A == 0 ? 1 : 0) +
+                   (!image.TryGetPixel(p.X - 1, p.Y + 1, out c) || c.A == 0 ? 1 : 0) >= 5;
         }
     }
 }
