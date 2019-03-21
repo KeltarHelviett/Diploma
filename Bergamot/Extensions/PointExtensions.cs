@@ -29,5 +29,10 @@ namespace Bergamot.Extensions
         {
             return new Point(Math.Abs(self.X), Math.Abs(self.Y));
         }
+
+        public static Point Mul(this Point self, int multiplier)
+        {
+            return new Point(self.X * multiplier, self.Y * multiplier);
+        }
     }
 }
