@@ -2,7 +2,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
-using System.Drawing.Drawing2D;
 using Bergamot.DataStructures;
 using Bergamot.Extensions;
 
@@ -73,6 +72,37 @@ namespace Bergamot.NonConvexHullGeneration
                 }
                 rotationTimes = 0;
             } while (current != start);
+            return boundaries;
+        }
+
+        private static readonly Point[,] nextNeighbor = new Point[3,3] {
+            {new Point(1, 0), new Point(0, 0), new Point(0, 1)},
+            {new Point(2, 0), new Point(int.MinValue, int.MinValue), new Point(0, 2)},
+            {new Point(2, 1), new Point(2, 2), new Point(1, 2)}
+        };
+
+        public static List<Point> MoorNeighborTracing(Bitmap image)
+        {
+            Point NextNeighbor(Point p, Point n)
+            {
+                var offset = n.Sub(p);
+                return p.Add(nextNeighbor[offset.X + 1, offset.Y + 1].Sub(new Point(1, 1)));
+            }
+            var start = GetStartPoint(image);
+            var current = start;
+            var boundaries = new List<Point>(image.Height * 2 + image.Width + 2) { start };
+            var neighbor = NextNeighbor(current, current.Add(new Point(0, 1)));
+            var prev = neighbor;
+            while (neighbor != start) {
+                if (image.TryGetPixel(neighbor, out var c) && c.A != 0) {
+                    boundaries.Add(neighbor);
+                    current = neighbor;
+                    neighbor = prev;
+                } else {
+                    prev = neighbor;
+                    neighbor = NextNeighbor(current, neighbor);
+                }
+            }
             return boundaries;
         }
 
