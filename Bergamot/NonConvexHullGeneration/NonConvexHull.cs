@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
+using System.Linq;
 using Bergamot.DataStructures;
 using Bergamot.Extensions;
 
@@ -14,6 +15,9 @@ namespace Bergamot.NonConvexHullGeneration
 {
     public static class NonConvexHull
     {
+        public static ulong SegmentCoefficient = 1000;
+        public static ulong TransparentPixelsCoefficient = 1;
+
         private class Triangle
         {
             public Triangle next, prev;
@@ -133,12 +137,12 @@ namespace Bergamot.NonConvexHullGeneration
             return new Point(-1, -1);
         }
 
-        private static (List<Segment>, List<int>) UpdateHull(Bitmap image, List<Point> boundaries, List<Segment> segments, List<int> startIndexes)
+        private static (List<Segment>, List<int>, bool) UpdateHull(Bitmap image, List<Point> boundaries, List<Segment> segments, List<int> startIndexes, int imageArea)
         {
             var updatedSegments = new List<Segment>();
             var updatedIndexes = new List<int>();
-            int cur = 0;
-            int merge = 1;
+            int cur = 0, merge = 1;
+            var area = CalculateArea(segments);
             while (merge < segments.Count) {
                 if (!SegmentIntersectBoundaries(boundaries, startIndexes[cur], startIndexes[merge])) {
                     segments[cur] = new Segment(segments[cur].A, segments[merge++].A);
@@ -161,7 +165,9 @@ namespace Bergamot.NonConvexHullGeneration
             }
             Debug.Assert(updatedSegments[updatedSegments.Count - 1].B == updatedSegments[0].A);
 #endif
-            return (updatedSegments, updatedIndexes);
+            return (updatedSegments, updatedIndexes,
+                SegmentCoefficient * (ulong)updatedSegments.Count + TransparentPixelsCoefficient * (ulong)(CalculateArea(updatedSegments) - imageArea) <
+                SegmentCoefficient * (ulong)segments.Count + TransparentPixelsCoefficient * (ulong)(area - imageArea));
         }
 
         public static List<Point> GetExtremumPoints(Bitmap image, FiniteDifferenceType fdt = FiniteDifferenceType.Right)
@@ -240,10 +246,12 @@ namespace Bergamot.NonConvexHullGeneration
             segmentStartIndexes.Add(boundaries.Count - 1);
             Debug.Assert(segments[segments.Count - 1].B == segments[0].A);
             int prev;
+            bool next;
+            int imageArea = CalculateArea(boundaries);
             do {
                 prev = segments.Count;
-                (segments, segmentStartIndexes) = UpdateHull(image, boundaries, segments, segmentStartIndexes);
-            } while (prev != segments.Count);
+                (segments, segmentStartIndexes, next) = UpdateHull(image, boundaries, segments, segmentStartIndexes, imageArea);
+            } while (prev != segments.Count && next);
             return segments;
         }
 
@@ -428,6 +436,24 @@ namespace Bergamot.NonConvexHullGeneration
                 d.Y = d.Y != 0 ? d.Y / Math.Abs(d.Y) * 2 : 0;
                 boundaries[i] = boundaries[i].Add(d).Clamp(0, image.Width - 1, 0, image.Height - 1);
             }
+        }
+
+        public static int CalculateArea(List<Segment> segments)
+        {
+            var area = 0f;
+            for (int i = 0; i < segments.Count; i++) {
+                area += segments[i].A.X * segments[i].B.Y - segments[i].A.Y * segments[i].B.X;
+            }
+            return (int) Math.Abs(Math.Ceiling(area / 2));
+        }
+
+        public static int CalculateArea(List<Point> points)
+        {
+            var area = 0f;
+            for (int i = 0; i < points.Count; i++) {
+                area += points[i].X * points[(i + 1) % points.Count].Y - points[i].Y * points[(i + 1) % points.Count].X;
+            }
+            return (int) Math.Abs(Math.Ceiling(area / 2));
         }
     }
 }

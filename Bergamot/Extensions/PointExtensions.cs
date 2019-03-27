@@ -34,5 +34,15 @@ namespace Bergamot.Extensions
         {
             return new Point(self.X * multiplier, self.Y * multiplier);
         }
+
+        public static Point Sqr(this Point self)
+        {
+            return new Point(self.X * self.X, self.Y * self.Y);
+        }
+
+        public static int Sum(this Point self)
+        {
+            return self.X + self.Y;
+        }
     }
 }

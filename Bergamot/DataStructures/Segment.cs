@@ -1,4 +1,6 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
+using Bergamot.Extensions;
 
 namespace Bergamot.DataStructures
 {
@@ -11,5 +13,7 @@ namespace Bergamot.DataStructures
             A = a;
             B = b;
         }
+
+        public int Length => (int)Math.Ceiling(Math.Sqrt(A.Sub(B).Sqr().Sum()));
     }
 }

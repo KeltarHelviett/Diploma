@@ -9,5 +9,10 @@ namespace Bergamot.Extensions
         {
             return value < min ? min : value > max ? max : value;
         }
+
+        public static int Sqr(this int self)
+        {
+            return self * self;
+        }
     }
 }
