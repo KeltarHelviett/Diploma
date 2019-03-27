@@ -26,6 +26,14 @@ namespace Bergamot
             }
         }
 
+        public static void ShowSegmentEndpoints(Bitmap image, List<Segment> segments, Color color)
+        {
+            foreach (var segment in segments) {
+                image.SetPixel(segment.A.X, segment.A.Y, color);
+                image.SetPixel(segment.B.X, segment.B.Y, color);
+            }
+        }
+
         static void Main(string[] args)
         {
             Parser.Default.ParseArguments<Options>(args).WithParsed(options => {
@@ -43,6 +51,9 @@ namespace Bergamot
                 ShowHull(image, hull, new Pen(Color.DarkSalmon, 1));
                 if (options.ShowBoundaries) {
                     ShowBoundaries(image, boundaries, Color.BlueViolet);
+                }
+                if (options.ShowSegmentEndpoints) {
+                    ShowSegmentEndpoints(image, hull, Color.Chartreuse);
                 }
                 image.Save(options.Output ?? $"{Path.Combine(Path.GetDirectoryName(options.Filename) ?? "", "out_" + Path.GetFileName(options.Filename))}");
             });

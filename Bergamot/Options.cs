@@ -26,5 +26,8 @@ namespace Bergamot
 
         [Option("show-boundaries", Default = false, HelpText = "Show boundaries that were constructed by the algorithm")]
         public bool ShowBoundaries { get; set; }
+
+        [Option("show-segment-endpoints", Default = false, HelpText = "Show hull's segments endpoints")]
+        public bool ShowSegmentEndpoints { get; set; }
     }
 }
