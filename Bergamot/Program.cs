@@ -44,9 +44,23 @@ namespace Bergamot
                     return;
                 }
                 var image = new Bitmap(options.Filename);
-                var boundaries = options.Boundaries == BoundariesType.All
-                    ? NonConvexHull.GetBoundaries(image)
-                    : NonConvexHull.GetExtremumPoints(image, options.FiniteDifferenceType);
+                List<Point> boundaries;
+                switch (options.ContourTracing) {
+                    case ContourTracingAlgorithm.SquareTracing:
+                        boundaries = NonConvexHull.SquareTrace(image);
+                        break;
+                    case ContourTracingAlgorithm.MoorNeighbor:
+                        boundaries = NonConvexHull.MoorNeighborTracing(image);
+                        break;
+                    case ContourTracingAlgorithm.TheoPavlidis:
+                        boundaries = NonConvexHull.TheoPavlidisTrace(image);
+                        break;
+                    default:
+                        throw new ArgumentOutOfRangeException();
+                }
+                boundaries = options.Boundaries == BoundariesType.All
+                    ? boundaries
+                    : NonConvexHull.GetExtremumPoints(image, boundaries, options.FiniteDifferenceType);
                 var hull = NonConvexHull.GetNonConvexHull(image, boundaries);
                 ShowHull(image, hull, new Pen(Color.DarkSalmon, 1));
                 if (options.ShowBoundaries) {

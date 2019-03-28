@@ -8,6 +8,13 @@ namespace Bergamot
         Extremums,
     }
 
+    public enum ContourTracingAlgorithm
+    {
+        SquareTracing,
+        MoorNeighbor,
+        TheoPavlidis,
+    }
+
     public class Options
     {
         public static Options Instance { get; set; }
@@ -29,5 +36,8 @@ namespace Bergamot
 
         [Option("show-segment-endpoints", Default = false, HelpText = "Show hull's segments endpoints")]
         public bool ShowSegmentEndpoints { get; set; }
+
+        [Option("contour-tracing", HelpText = "Contour tracing algorithm (SquareTracing, MoorNeighbor, TheoPavlidis)", Default = ContourTracingAlgorithm.SquareTracing)]
+        public ContourTracingAlgorithm ContourTracing { get; set; }
     }
 }

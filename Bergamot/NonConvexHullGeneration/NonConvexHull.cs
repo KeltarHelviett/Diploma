@@ -30,11 +30,6 @@ namespace Bergamot.NonConvexHullGeneration
             public bool Removed => next == null && prev == null;
         }
 
-        public static List<Point> GetBoundaries(Bitmap image)
-        {
-            return SquareTrace(image);
-        }
-
         public static List<Point> SquareTrace(Bitmap image)
         {
             var start = GetStartPoint(image);
@@ -170,15 +165,14 @@ namespace Bergamot.NonConvexHullGeneration
                 SegmentCoefficient * (ulong)segments.Count + TransparentPixelsCoefficient * (ulong)(area - imageArea));
         }
 
-        public static List<Point> GetExtremumPoints(Bitmap image, FiniteDifferenceType fdt = FiniteDifferenceType.Right)
+        public static List<Point> GetExtremumPoints(Bitmap image, List<Point> boundaries,FiniteDifferenceType fdt = FiniteDifferenceType.Right)
         {
-            var cloud = GetBoundaries(image);
             var res = new List<Point>();
-            var (start, end, diff) = GetExtremumPointsHelper(image, cloud, fdt);
+            var (start, end, diff) = GetExtremumPointsHelper(image, boundaries, fdt);
             for (int i = start; i < end; ++i) {
                 var (fx, fy) = diff(i);
                 if (Math.Abs(fx) <= 1 && Math.Abs(fy) <= 1) {
-                    res.Add(cloud[i]);
+                    res.Add(boundaries[i]);
                 }
             }
             return res;
