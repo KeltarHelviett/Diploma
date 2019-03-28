@@ -252,13 +252,10 @@ namespace Bergamot.NonConvexHullGeneration
         public static bool SegmentIntersectBoundaries(List<Point> boundaries, int startIndex, int endIndex)
         {
             Point start = boundaries[startIndex], end = boundaries[endIndex];
-            float
-                A = start.Y - end.Y,
-                B = end.X - start.X,
-                C = start.X * end.Y - end.X * start.Y;
+            float a = end.X - start.X, b = end.Y - start.Y;
             for (int i = startIndex + 1; i < endIndex; ++i) {
                 var p = boundaries[i];
-                if (A * p.X + B * p.Y + C <= -1) {
+                if (a * (p.Y - start.Y) - b * (p.X - start.X) < 0) {
                     return true;
                 }
             }
