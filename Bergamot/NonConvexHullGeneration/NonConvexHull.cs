@@ -271,17 +271,8 @@ namespace Bergamot.NonConvexHullGeneration
             return false;
         }
 
-        public static bool IsOnNormalDirection(Point start, Point end, Point mid)
-        {
-            float
-                A = start.Y - end.Y,
-                B = end.X - start.X,
-                C = start.X * end.Y - end.X * start.Y;
-            if (A * mid.X + B * mid.Y + C <= -1) {
-                return true;
-            }
-            return false;
-        }
+        public static bool IsOnNormalDirection(Point start, Point end, Point mid) =>
+            (end.X - start.X) * (mid.Y - start.Y) - (end.Y - start.Y) * (mid.X - start.X) >= 0;
 
         public static bool BresenhamSegmentIntersectsSprite(Bitmap image, Point p1, Point p2)
         {
@@ -386,12 +377,11 @@ namespace Bergamot.NonConvexHullGeneration
         public static List<Segment> VisvalingamPolylineSimplification(Bitmap image, List<Point> boundaries, int maxArea)
         {
             var segments = new List<Segment>();
-            ExpandBorder(image, boundaries);
             var (triangles, heap) = ConstructTriangles(boundaries);
             while (heap.Count > 0) {
                 var t = heap.Min;
                 heap.Remove(t);
-                if (t.area <= maxArea && !IsOnNormalDirection(t.p1, t.p3, t.p2)) {
+                if (t.area <= maxArea && IsOnNormalDirection(t.p1, t.p3, t.p2)) {
                     if (t.prev != null) {
                         t.prev.next = t.next;
                         t.prev.p3 = t.p3;
