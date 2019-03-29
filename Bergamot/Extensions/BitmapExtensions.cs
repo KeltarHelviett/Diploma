@@ -10,9 +10,6 @@ namespace Bergamot.Extensions
             return !color.IsEmpty;
         }
 
-        public static bool TryGetPixel(this Bitmap image, Point p, out Color color)
-        {
-            return image.TryGetPixel(p.X, p.Y, out color);
-        }
+        public static bool TryGetPixel(this Bitmap image, Point p, out Color color) => image.TryGetPixel(p.X, p.Y, out color);
     }
 }

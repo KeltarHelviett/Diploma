@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
 using Bergamot.DataStructures;
+using Bergamot.MeshGeneration;
 using CommandLine;
 using Bergamot.NonConvexHullGeneration;
 

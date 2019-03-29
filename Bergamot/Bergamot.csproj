@@ -51,6 +51,7 @@
     <Compile Include="Extensions\ColorExtensions.cs" />
     <Compile Include="Extensions\IntegerExtensions.cs" />
     <Compile Include="Extensions\PointExtensions.cs" />
+    <Compile Include="MeshGeneration\MeshGenerator.cs" />
     <Compile Include="NonConvexHullGeneration\NonConvexHull.cs" />
     <Compile Include="Options.cs" />
     <Compile Include="Program.cs" />
@@ -61,5 +62,6 @@
     <None Include="App.config" />
     <None Include="packages.config" />
   </ItemGroup>
+  <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
