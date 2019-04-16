@@ -54,5 +54,66 @@ namespace Bergamot.MeshGeneration
 				}
 			}
 		}
+
+		private static HashSet<Triangle> BowyerWatson(List<PointF> points, List<Triangle> supers)
+		{
+			var triangles = new HashSet<Triangle>();
+			var polygon = new HashSet<Edge>();
+			var badTriangles = new HashSet<Triangle>();
+			foreach (var super in supers) {
+				triangles.Add(super);
+			}
+			int i = 0;
+			foreach (var point in points) {
+				badTriangles.Clear();
+				polygon.Clear();
+				foreach (var triangle in triangles) {
+					if (triangle.CircumcircleContains(point)) {
+						badTriangles.Add(triangle);
+						foreach (var e in triangle.Edges) {
+							if (!polygon.Contains(e)) {
+								polygon.Add(e);
+							} else {
+								polygon.Remove(e);
+							}
+						}
+					}
+				}
+				foreach (var badTriangle in badTriangles) {
+					triangles.Remove(badTriangle);
+				}
+				foreach (var edge in polygon) {
+					triangles.Add(new Triangle(edge.A, edge.B, point));
+				}
+			}
+			triangles.RemoveWhere(t => supers.Any(s => s.Contains(t.V1) || s.Contains(t.V2) || s.Contains(t.V3)));
+			return triangles;
+		}
+
+		public static List<Triangle> SuperSquare(Bitmap bitmap) => new List<Triangle> {
+			new Triangle(new PointF(0, 0), new PointF(bitmap.Width, 0), new PointF(0, bitmap.Height)),
+			new Triangle(new PointF(bitmap.Width, bitmap.Height), new PointF(bitmap.Width, 0), new PointF(0, bitmap.Height)),
+		};
+
+		public static List<Triangle> SuperSquare(List<Point> points)
+		{
+			PointF min = points[0], max = points[0];
+			foreach (var point in points) {
+				min.X = Math.Min(min.X, point.X);
+				min.Y = Math.Min(min.Y, point.Y);
+				max.X = Math.Max(max.X, point.X);
+				max.Y = Math.Max(max.Y, point.Y);
+			}
+			return new List<Triangle> {
+				new Triangle(new PointF(min.X, min.Y), new PointF(max.X, min.Y), new PointF(min.X, max.Y)),
+				new Triangle(new PointF(max.X, max.Y), new PointF(max.X, min.Y), new PointF(min.X, max.Y)),
+			};
+		}
+
+		public static ICollection<Triangle> Delaunay(List<Point> points) => 
+			BowyerWatson(points.Select(p => new PointF(p.X, p.Y)).ToList(), SuperSquare(points));
+
+		public static ICollection<Triangle> Delaunay(Bitmap bitmap, List<Point> points) => 
+			BowyerWatson(points.Select(p => new PointF(p.X, p.Y)).ToList(), SuperSquare(bitmap));
 	}
 }

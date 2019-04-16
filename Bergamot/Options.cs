@@ -39,5 +39,8 @@ namespace Bergamot
 
 		[Option("contour-tracing", HelpText = "Contour tracing algorithm (SquareTracing, MoorNeighbor, TheoPavlidis)", Default = ContourTracingAlgorithm.SquareTracing)]
 		public ContourTracingAlgorithm ContourTracing { get; set; }
+
+		[Option('t', "triangulate", Default = false, HelpText = "Show triangulation")]
+		public bool Triangulate { get; set; }
 	}
 }

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Drawing;
 using System.IO;
+using System.Linq;
 using Bergamot.DataStructures;
 using Bergamot.MeshGeneration;
 using CommandLine;
@@ -32,6 +33,15 @@ namespace Bergamot
 			foreach (var segment in segments) {
 				image.SetPixel(segment.A.X, segment.A.Y, color);
 				image.SetPixel(segment.B.X, segment.B.Y, color);
+			}
+		}
+
+		public static void ShowMesh(Bitmap image, ICollection<Triangle> triangles, Pen pen)
+		{
+			using (var g = Graphics.FromImage(image)) {
+				foreach (var triangle in triangles) {
+					g.DrawPolygon(pen, new [] { triangle.V1, triangle.V2, triangle.V3, });
+				}
 			}
 		}
 
@@ -69,6 +79,10 @@ namespace Bergamot
 				}
 				if (options.ShowSegmentEndpoints) {
 					ShowSegmentEndpoints(image, hull, Color.Chartreuse);
+				}
+				if (options.Triangulate) {
+					var triangles = MeshGenerator.Delaunay(image, hull.Select(s => s.A).ToList());
+					ShowMesh(image, triangles, new Pen(Color.Firebrick, 1f));
 				}
 				image.Save(options.Output ?? $"{Path.Combine(Path.GetDirectoryName(options.Filename) ?? "", "out_" + Path.GetFileName(options.Filename))}");
 			});
