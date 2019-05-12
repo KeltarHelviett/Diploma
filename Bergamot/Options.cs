@@ -42,5 +42,8 @@ namespace Bergamot
 
 		[Option('t', "triangulate", Default = false, HelpText = "Show triangulation")]
 		public bool Triangulate { get; set; }
+
+		[Option('c', "check", Default = false, HelpText = "Runtime checks and assertions")]
+		public bool RuntimeChecks { get; set; }
 	}
 }

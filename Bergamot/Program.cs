@@ -36,11 +36,11 @@ namespace Bergamot
 			}
 		}
 
-		public static void ShowMesh(Bitmap image, ICollection<Triangle> triangles, Pen pen)
+		public static void ShowMesh(Bitmap image, ICollection<ConnectedTriangle> triangles, Pen pen)
 		{
 			using (var g = Graphics.FromImage(image)) {
 				foreach (var triangle in triangles) {
-					g.DrawPolygon(pen, new [] { triangle.V1, triangle.V2, triangle.V3, });
+					g.DrawPolygon(pen, new [] { triangle.V1.Value, triangle.V2.Value, triangle.V3.Value, });
 				}
 			}
 		}

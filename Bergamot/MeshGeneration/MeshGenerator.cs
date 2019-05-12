@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
 using Bergamot.DataStructures;
@@ -55,26 +57,42 @@ namespace Bergamot.MeshGeneration
 			}
 		}
 
-		private static HashSet<Triangle> BowyerWatson(List<PointF> points, List<Triangle> supers)
+		private static void DebugTriangulationStep(PointF vertex, ICollection<ConnectedTriangle> triangles, int step)
 		{
-			var triangles = new HashSet<Triangle>();
-			var polygon = new HashSet<Edge>();
-			var badTriangles = new HashSet<Triangle>();
+			var red = new Pen(Color.Red, 2);
+			var black = new Pen(Color.Black);
+			using (var image = new Bitmap(2600, 1630)) {
+				using (var g = Graphics.FromImage(image)) {
+					foreach (var triangle in triangles) {
+						g.DrawPolygon(black, triangle.Vertices.Select(v => v.Value).ToArray());
+					}
+					g.DrawEllipse(red, vertex.X, vertex.Y, 2, 2);
+				}
+				image.Save($@"C:\Users\Dell\Desktop\Samples\{step}.png");
+			}
+		}
+
+		public /*private*/ static HashSet<ConnectedTriangle> BowyerWatson(List<PointF> points, List<ConnectedTriangle> supers)
+		{
+			var triangles = new HashSet<ConnectedTriangle>();
+			PolygonEdge polygon;
+			var badTriangles = new HashSet<ConnectedTriangle>();
+			var edges = new HashSet<PolygonEdge>();
 			foreach (var super in supers) {
 				triangles.Add(super);
 			}
-			int i = 0;
+			var j = 0;
 			foreach (var point in points) {
 				badTriangles.Clear();
-				polygon.Clear();
+				polygon = null;
+				edges.Clear();
 				foreach (var triangle in triangles) {
 					if (triangle.CircumcircleContains(point)) {
 						badTriangles.Add(triangle);
-						foreach (var e in triangle.Edges) {
-							if (!polygon.Contains(e)) {
-								polygon.Add(e);
-							} else {
-								polygon.Remove(e);
+						for (int i = 0; i < 3; i++) {
+							var edge = new PolygonEdge(i, triangle);
+							if (!edges.Add(edge)) {
+								edges.Remove(edge);
 							}
 						}
 					}
@@ -82,20 +100,64 @@ namespace Bergamot.MeshGeneration
 				foreach (var badTriangle in badTriangles) {
 					triangles.Remove(badTriangle);
 				}
-				foreach (var edge in polygon) {
-					triangles.Add(new Triangle(edge.A, edge.B, point));
+				var start = polygon = edges.First();
+				edges.Remove(polygon);
+				while (edges.Count > 0) {
+					foreach (var edge in edges) {
+						if (polygon.ConnectEdge(edge)) {
+							polygon = edge;
+							edges.Remove(edge);
+							break;
+						}
+					}
+				}
+				polygon.Next = start;
+				Debug.Assert(polygon.TryClosePolygon());
+				polygon.Triangulate(point, triangles);
+				if (Options.Instance.RuntimeChecks) {
+					DebugTriangulationStep(point, triangles, j++);
 				}
 			}
-			triangles.RemoveWhere(t => supers.Any(s => s.Contains(t.V1) || s.Contains(t.V2) || s.Contains(t.V3)));
+			triangles.RemoveWhere(t => supers.Any(s => s.Contains(t.V1.Value) || s.Contains(t.V2.Value) || s.Contains(t.V3.Value)));
+			if (Options.Instance.RuntimeChecks) {
+				Debug.Assert(CheckDelaunayProperty(triangles), "Triangulation doesn't satisfy Delaunay property!");
+			}
 			return triangles;
 		}
 
-		public static List<Triangle> SuperSquare(Bitmap bitmap) => new List<Triangle> {
-			new Triangle(new PointF(0, 0), new PointF(bitmap.Width, 0), new PointF(0, bitmap.Height)),
-			new Triangle(new PointF(bitmap.Width, bitmap.Height), new PointF(bitmap.Width, 0), new PointF(0, bitmap.Height)),
-		};
+		private static bool CheckDelaunayProperty(ICollection<ConnectedTriangle> triangulation)
+		{
+			int count = 0;
+			foreach (var triangle in triangulation) {
+				foreach (var other in triangulation) {
+					if (triangle != other) {
+						foreach (var vertex in other.Vertices) {
+							if (
+								Array.IndexOf(triangle.Vertices, vertex) < 0 && vertex.HasValue &&
+								triangle.CircumcircleContains(vertex.Value)
+							) {
+								return false;
+							}
+						}
+					}
+				}
+			}
+			return true;
+		}
 
-		public static List<Triangle> SuperSquare(List<Point> points)
+		public static List<ConnectedTriangle> SuperSquare(Bitmap bitmap)
+		{
+			var t1 = new ConnectedTriangle(new PointF(0, bitmap.Height), new PointF(0, 0), new PointF(bitmap.Width, 0));
+			var t2 = new ConnectedTriangle(new PointF(0, bitmap.Height), new PointF(bitmap.Width, 0),
+				new PointF(bitmap.Width, bitmap.Height));
+			t2.T3 = t1;
+			t2.O3 = 1;
+			t1.T2 = t2;
+			t1.O2 = 2;
+			return new List<ConnectedTriangle> { t1, t2, };
+		}
+
+		public static List<ConnectedTriangle> SuperSquare(List<Point> points)
 		{
 			PointF min = points[0], max = points[0];
 			foreach (var point in points) {
@@ -104,16 +166,16 @@ namespace Bergamot.MeshGeneration
 				max.X = Math.Max(max.X, point.X);
 				max.Y = Math.Max(max.Y, point.Y);
 			}
-			return new List<Triangle> {
-				new Triangle(new PointF(min.X, min.Y), new PointF(max.X, min.Y), new PointF(min.X, max.Y)),
-				new Triangle(new PointF(max.X, max.Y), new PointF(max.X, min.Y), new PointF(min.X, max.Y)),
+			return new List<ConnectedTriangle> {
+				new ConnectedTriangle(new PointF(min.X, max.Y), new PointF(min.X, min.Y), new PointF(max.X, min.Y)),
+				new ConnectedTriangle(new PointF(min.X, max.Y), new PointF(max.X, min.Y), new PointF(max.X, max.Y)),
 			};
 		}
 
-		public static ICollection<Triangle> Delaunay(List<Point> points) => 
+		public static ICollection<ConnectedTriangle> Delaunay(List<Point> points) => 
 			BowyerWatson(points.Select(p => new PointF(p.X, p.Y)).ToList(), SuperSquare(points));
 
-		public static ICollection<Triangle> Delaunay(Bitmap bitmap, List<Point> points) => 
+		public static ICollection<ConnectedTriangle> Delaunay(Bitmap bitmap, List<Point> points) => 
 			BowyerWatson(points.Select(p => new PointF(p.X, p.Y)).ToList(), SuperSquare(bitmap));
 	}
 }
