@@ -1,5 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
@@ -22,10 +21,13 @@ namespace Bergamot.DataStructures
 
 		public ConnectedTriangle(PointF p1, PointF p2, PointF p3)
 		{
-			var ps = new[] { p1, p2, p3 }.OrderBy(p => p.X).ThenByDescending(p => p.Y).ToArray();
-			V1 = ps[0];
-			V2 = ps[1];
-			V3 = ps[2];
+			V1 = p1;
+			V2 = p2;
+			V3 = p3;
+			Array.Sort(Vertices, (lhs, rhs) => {
+				var r = lhs.Value.X.CompareTo(rhs.Value.X);
+				return r != 0 ? r : -lhs.Value.Y.CompareTo(rhs.Value.X);
+			});
 			if (Area() < 0) {
 				var tmp = V2;
 				V2 = V3;
@@ -91,18 +93,16 @@ namespace Bergamot.DataStructures
 		public bool CircumcircleContains(PointF p)
 		{
 			PointF v1 = V1.Value, v2 = V2.Value, v3 = V3.Value;
-			var n1 = v1.Norm2();
-			var n2 = v2.Norm2();
-			var n3 = v3.Norm2();
-			var a = v1.X * v2.Y + v2.X * v3.Y + v3.X * v1.Y - (v2.Y * v3.X + v3.Y * v1.X + v1.Y * v2.X);
+			var n1 = (double)v1.Norm2();
+			var n2 = (double)v2.Norm2();
+			var n3 = (double)v3.Norm2();
+			var a = (double)v1.X * v2.Y + (double)v2.X * v3.Y + (double)v3.X * v1.Y - ((double)v2.Y * v3.X + (double)v3.Y * v1.X + (double)v1.Y * v2.X);
 			var b = n1 * v2.Y + n2 * v3.Y + n3 * v1.Y - (v2.Y * n3 + v3.Y * n1 + v1.Y * n2);
 			var c = n1 * v2.X + n2 * v3.X + n3 * v1.X - (v2.X * n3 + v3.X * n1 + v1.X * n2);
 			var d = n1 * v2.X * v3.Y + n2 * v3.X * v1.Y + n3 * v1.X * v2.Y - (v2.X * n3 * v1.Y + v3.X * n1 * v2.Y + v1.X * n2 * v3.Y);
 
 			return (a * p.Norm2() - b * p.X + c * p.Y - d) * Math.Sign(a) < 0;
 		}
-
-		public IEnumerable<Edge> Edges => new List<Edge> { new Edge(V1.Value, V2.Value), new Edge(V2.Value, V3.Value), new Edge(V2.Value, V3.Value) };
 
 		public float Area()
 		{
@@ -113,6 +113,16 @@ namespace Bergamot.DataStructures
 		public bool Contains(PointF vertex)
 		{
 			return V1.Value.Equals(vertex) || V2.Value.Equals(vertex) || V3.Value.Equals(vertex);
+		}
+
+		public bool SelfCheck()
+		{
+			for (int i = 0; i < 3; i++) {
+				if (Triangles[i] != null && !ReferenceEquals(Triangles[i].Triangles[Orientations[i]], this)) {
+					return false;
+				}
+			}
+			return true;
 		}
 	}
 }

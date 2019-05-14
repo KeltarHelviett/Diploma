@@ -68,54 +68,100 @@ namespace Bergamot.MeshGeneration
 					}
 					g.DrawEllipse(red, vertex.X, vertex.Y, 2, 2);
 				}
-				image.Save($@"C:\Users\Dell\Desktop\Samples\{step}.png");
+				image.Save($@"D:\GIT\Samples\{step}.png");
 			}
 		}
 
-		public /*private*/ static HashSet<ConnectedTriangle> BowyerWatson(List<PointF> points, List<ConnectedTriangle> supers)
+		public static ConnectedTriangle FindTriangle(ConnectedTriangle start, PointF point)
+		{
+			ConnectedTriangle prev = null;
+			while (prev != start) {
+				prev = start;
+				for (int i = 0; i < 3; i++) {
+					var line = start.Vertices[(i + 1) % 3].Value.Sub(start.Vertices[i].Value);
+					var vec = point.Sub(start.Vertices[i].Value);
+					var vec2 = start.Vertices[(i + 2) % 3].Value.Sub(start.Vertices[i].Value);
+					if (Math.Sign(line.Cross(vec)) * Math.Sign(line.Cross(vec2)) < 0 && start.Triangles[(i + 2) % 3] != null) {
+						start = start.Triangles[(i + 2) % 3];
+						break;
+					}
+				}
+			}
+			return start;
+		}
+
+		public static void ClockwiseTrace(ConnectedTriangle triangle, int cameFrom, Polygon polygon, PointF point, ICollection<ConnectedTriangle> used)
+		{
+			used.Add(triangle);
+			for (int i = (cameFrom - 2).EuclideanMod(3); i < (cameFrom - 2).EuclideanMod(3) + 3; i++) {
+				var t = triangle.Triangles[(i + 2) % 3];
+				if (t != null && used.Contains(t)) {
+					continue;
+				}
+				if (t != null && t.CircumcircleContains(point)) {
+					ClockwiseTrace(t, triangle.Orientations[(i + 2) % 3], polygon, point, used);
+				} else {
+#if DEBUG
+					Debug.Assert(polygon.InsertEdge(new PolygonEdge(i % 3, triangle)), "Failed to insert edge into polygon");
+#else
+					polygon.InsertEdge(new PolygonEdge(i, triangle))
+#endif
+				}
+			}
+		}
+
+		public static void ShowPolygon(Polygon polygon, PointF point)
+		{
+			using (var image = new Bitmap(2600, 1630)) {
+				var current = polygon.Start;
+				var red = new Pen(Color.DarkRed);
+				var green = new Pen(Color.Green);
+				using (var g = Graphics.FromImage(image)) {
+					do {
+						g.DrawLine(green, current.V1, current.V2);
+						current = current.Next;
+					} while (current != null && current != polygon.Start);
+					g.DrawEllipse(red, point.X, point.Y, 2, 2);
+				}
+				image.Save($@"D:\GIT\Samples\p.png");
+			}
+		}
+
+		public static Polygon GetContourPolygon(ConnectedTriangle start, PointF point, ICollection<ConnectedTriangle> badTriangles)
+		{
+			var polygon = new Polygon();
+			ClockwiseTrace(start, 2, polygon, point, badTriangles);
+#if DEBUG
+			Debug.Assert(polygon.TryClose(), "Polygon isn't closed");
+#else
+			polygon.TryClose();
+#endif
+			return polygon;
+		}
+
+		private static HashSet<ConnectedTriangle> BowyerWatson(List<PointF> points, List<ConnectedTriangle> supers)
 		{
 			var triangles = new HashSet<ConnectedTriangle>();
-			PolygonEdge polygon;
 			var badTriangles = new HashSet<ConnectedTriangle>();
-			var edges = new HashSet<PolygonEdge>();
 			foreach (var super in supers) {
 				triangles.Add(super);
 			}
+			ConnectedTriangle lastAdded = triangles.First();
 			var j = 0;
 			foreach (var point in points) {
 				badTriangles.Clear();
-				polygon = null;
-				edges.Clear();
-				foreach (var triangle in triangles) {
-					if (triangle.CircumcircleContains(point)) {
-						badTriangles.Add(triangle);
-						for (int i = 0; i < 3; i++) {
-							var edge = new PolygonEdge(i, triangle);
-							if (!edges.Add(edge)) {
-								edges.Remove(edge);
-							}
-						}
-					}
-				}
+				// find triangle that contains given point
+				var t = FindTriangle(lastAdded, point);
+				// construct contour polygon from all adjacent triangles
+				// that does not satisfy Delaunay property
+				var polygon = GetContourPolygon(t, point, badTriangles);
 				foreach (var badTriangle in badTriangles) {
 					triangles.Remove(badTriangle);
 				}
-				var start = polygon = edges.First();
-				edges.Remove(polygon);
-				while (edges.Count > 0) {
-					foreach (var edge in edges) {
-						if (polygon.ConnectEdge(edge)) {
-							polygon = edge;
-							edges.Remove(edge);
-							break;
-						}
-					}
-				}
-				polygon.Next = start;
-				Debug.Assert(polygon.TryClosePolygon());
-				polygon.Triangulate(point, triangles);
+				lastAdded = polygon.Triangulate(point, triangles);
 				if (Options.Instance.RuntimeChecks) {
 					DebugTriangulationStep(point, triangles, j++);
+					ShowPolygon(polygon, point);
 				}
 			}
 			triangles.RemoveWhere(t => supers.Any(s => s.Contains(t.V1.Value) || s.Contains(t.V2.Value) || s.Contains(t.V3.Value)));
@@ -127,7 +173,6 @@ namespace Bergamot.MeshGeneration
 
 		private static bool CheckDelaunayProperty(ICollection<ConnectedTriangle> triangulation)
 		{
-			int count = 0;
 			foreach (var triangle in triangulation) {
 				foreach (var other in triangulation) {
 					if (triangle != other) {
@@ -154,6 +199,7 @@ namespace Bergamot.MeshGeneration
 			t2.O3 = 1;
 			t1.T2 = t2;
 			t1.O2 = 2;
+			Debug.Assert(t2.SelfCheck() && t1.SelfCheck());
 			return new List<ConnectedTriangle> { t1, t2, };
 		}
 

@@ -12,7 +12,6 @@ namespace Bergamot.DataStructures
 		// Endpoints
 		public PointF V1, V2;
 		public PolygonEdge Next;
-		public PolygonEdge Prev;
 		public int Orientation;
 
 		public PolygonEdge(int i, ConnectedTriangle t)
@@ -21,49 +20,6 @@ namespace Bergamot.DataStructures
 			V2 = t.Vertices[(i + 1) % 3].Value;
 			Orientation = t.Orientations[(i + 2) % 3];
 			Triangle = t.Triangles[(i + 2) % 3];
-		}
-
-		public bool RemoveIfContains(PolygonEdge edge, out PolygonEdge start)
-		{
-			var current = this;
-			start = this;
-			do {
-				if (edge.Equals(current)) {
-					start = current != this ? current : current.Prev ?? current.Next;
-					if (current.Prev != null) {
-						current.Prev.Next = current.Next;
-					}
-					current.Next = null;
-					current.Prev = null;
-					return true;
-				}
-				current = current.Next;
-			} while (current != null && current != this);
-			return false;
-		}
-
-		public bool ConnectEdge(PolygonEdge edge)
-		{
-			return (V2 == edge.V1 ? Next = edge : null) != null;
-		}
-
-		public bool TryClosePolygon()
-		{
-			var current = this;
-			PolygonEdge prev = null;
-			do {
-				prev = current;
-				current = current.Next;
-				if (current != null && prev != null) {
-					Debug.Assert(prev.V2 == current.V1, "Inconsistent polygon");
-				}
-			} while (current != null && current != this);
-
-			if (prev.V2 == V1) {
-				prev.Next = current;
-				return true;
-			}
-			return false;
 		}
 
 		// prev is a triangle that is build on counter clockwise edge connected to this
@@ -75,6 +31,8 @@ namespace Bergamot.DataStructures
 			if (Triangle != null) {
 				Triangle.Triangles[Orientation] = t;
 				t.Orientations[i] = Orientation;
+				Triangle.Orientations[Orientation] = i;
+				Debug.Assert(Triangle.SelfCheck());
 			}
 			t.Triangles[(i + 2) % 3] = prev;
 			if (prev != null) {
@@ -82,11 +40,13 @@ namespace Bergamot.DataStructures
 				prev.Triangles[(j + 1) % 3] = t;
 				prev.Orientations[(j + 1) % 3] = (i + 2) % 3;
 				t.Orientations[(i + 2) % 3] = (j + 1) % 3;
+				Debug.Assert(prev.SelfCheck());
 			}
+			Debug.Assert(t.SelfCheck());
 			return t;
 		}
 
-		public void Triangulate(PointF vertex, ICollection<ConnectedTriangle> triangulation)
+		public ConnectedTriangle Triangulate(PointF vertex, ICollection<ConnectedTriangle> triangulation)
 		{
 			PolygonEdge current = this;
 			ConnectedTriangle prevT = null, fixme = null;
@@ -95,12 +55,16 @@ namespace Bergamot.DataStructures
 				triangulation.Add(prevT);
 				fixme = fixme ?? prevT;
 				current = current.Next;
-			} while (current != this);
+			} while (!ReferenceEquals(current, this));
 			var i = Array.IndexOf(fixme.Vertices, vertex);
 			var j = Array.IndexOf(prevT.Vertices, vertex);
 			prevT.Triangles[(j + 1) % 3] = fixme;
 			prevT.Orientations[(j + 1) % 3] = (i + 2) % 3;
 			fixme.Orientations[(i + 2) % 3] = (j + 1) % 3;
+			fixme.Triangles[(i + 2) % 3] = prevT;
+			Debug.Assert(prevT.SelfCheck());
+			Debug.Assert(fixme.SelfCheck());
+			return fixme;
 		}
 
 		public bool Equals(PolygonEdge other)

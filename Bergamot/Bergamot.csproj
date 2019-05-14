@@ -49,6 +49,7 @@
   <ItemGroup>
     <Compile Include="DataStructures\ConnectedTriangle.cs" />
     <Compile Include="DataStructures\Edge.cs" />
+    <Compile Include="DataStructures\Polygon.cs" />
     <Compile Include="DataStructures\PolygonEdge.cs" />
     <Compile Include="DataStructures\Triangle.cs" />
     <Compile Include="Extensions\BitmapExtensions.cs" />
