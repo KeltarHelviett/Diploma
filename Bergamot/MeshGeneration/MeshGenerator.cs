@@ -141,12 +141,12 @@ namespace Bergamot.MeshGeneration
 
 		private static HashSet<ConnectedTriangle> BowyerWatson(List<PointF> points, List<ConnectedTriangle> supers)
 		{
-			var triangles = new HashSet<ConnectedTriangle>();
+			var triangulation = new HashSet<ConnectedTriangle>();
 			var badTriangles = new HashSet<ConnectedTriangle>();
 			foreach (var super in supers) {
-				triangles.Add(super);
+				triangulation.Add(super);
 			}
-			ConnectedTriangle lastAdded = triangles.First();
+			ConnectedTriangle lastAdded = triangulation.First();
 			var j = 0;
 			foreach (var point in points) {
 				badTriangles.Clear();
@@ -155,20 +155,32 @@ namespace Bergamot.MeshGeneration
 				// construct contour polygon from all adjacent triangles
 				// that does not satisfy Delaunay property
 				var polygon = GetContourPolygon(t, point, badTriangles);
-				foreach (var badTriangle in badTriangles) {
-					triangles.Remove(badTriangle);
+				var triangles = polygon.Triangulate(point);
+				if (triangles == null) {
+					lastAdded = badTriangles.First();
+					foreach (var badTriangle in badTriangles) {
+						badTriangle.Restore();
+					}
+					Debug.WriteLine($"Bad point {point}");
+					continue;
 				}
-				lastAdded = polygon.Triangulate(point, triangles);
+				foreach (var badTriangle in badTriangles) {
+					triangulation.Remove(badTriangle);
+				}
+				lastAdded = triangles[0];
+				foreach (var triangle in triangles) {
+					triangulation.Add(triangle);
+				}
 				if (Options.Instance.RuntimeChecks) {
-					DebugTriangulationStep(point, triangles, j++);
+					DebugTriangulationStep(point, triangulation, j++);
 					ShowPolygon(polygon, point);
 				}
 			}
-			triangles.RemoveWhere(t => supers.Any(s => s.Contains(t.V1.Value) || s.Contains(t.V2.Value) || s.Contains(t.V3.Value)));
+			triangulation.RemoveWhere(t => supers.Any(s => s.Contains(t.V1.Value) || s.Contains(t.V2.Value) || s.Contains(t.V3.Value)));
 			if (Options.Instance.RuntimeChecks) {
-				Debug.Assert(CheckDelaunayProperty(triangles), "Triangulation doesn't satisfy Delaunay property!");
+				Debug.Assert(CheckDelaunayProperty(triangulation), "Triangulation doesn't satisfy Delaunay property!");
 			}
-			return triangles;
+			return triangulation;
 		}
 
 		private static bool CheckDelaunayProperty(ICollection<ConnectedTriangle> triangulation)

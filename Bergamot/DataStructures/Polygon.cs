@@ -32,9 +32,9 @@ namespace Bergamot.DataStructures
 			return false;
 		}
 
-		public ConnectedTriangle Triangulate(PointF point, ICollection<ConnectedTriangle> triangulation)
+		public List<ConnectedTriangle> Triangulate(PointF point)
 		{
-			return Start.Triangulate(point, triangulation);
+			return Start.Triangulate(point);
 		}
 	}
 }

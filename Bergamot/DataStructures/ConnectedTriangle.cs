@@ -124,5 +124,14 @@ namespace Bergamot.DataStructures
 			}
 			return true;
 		}
+
+		public void Restore()
+		{
+			for (int i = 0; i < 3; i++) {
+				if (Triangles[i] != null) {
+					Triangles[i].Triangles[Orientations[i]] = this;
+				}
+			}
+		}
 	}
 }

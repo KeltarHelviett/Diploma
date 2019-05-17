@@ -46,13 +46,17 @@ namespace Bergamot.DataStructures
 			return t;
 		}
 
-		public ConnectedTriangle Triangulate(PointF vertex, ICollection<ConnectedTriangle> triangulation)
+		public List<ConnectedTriangle> Triangulate(PointF vertex)
 		{
 			PolygonEdge current = this;
 			ConnectedTriangle prevT = null, fixme = null;
+			var triangles = new List<ConnectedTriangle>(3);
 			do {
 				prevT = current.CreateTriangle(vertex, prevT);
-				triangulation.Add(prevT);
+				if (prevT.Area() == 0) {
+					return null;
+				}
+				triangles.Add(prevT);
 				fixme = fixme ?? prevT;
 				current = current.Next;
 			} while (!ReferenceEquals(current, this));
@@ -64,7 +68,7 @@ namespace Bergamot.DataStructures
 			fixme.Triangles[(i + 2) % 3] = prevT;
 			Debug.Assert(prevT.SelfCheck());
 			Debug.Assert(fixme.SelfCheck());
-			return fixme;
+			return triangles;
 		}
 
 		public bool Equals(PolygonEdge other)
