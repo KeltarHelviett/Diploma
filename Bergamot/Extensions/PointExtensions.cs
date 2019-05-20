@@ -1,4 +1,5 @@
-﻿using System.Drawing;
+﻿using System;
+using System.Drawing;
 
 namespace Bergamot.Extensions
 {
@@ -20,5 +21,18 @@ namespace Bergamot.Extensions
 		public static int Sum(this Point self) => self.X + self.Y;
 
 		public static int Cross(this Point self, Point other) => self.X * other.Y - self.Y * other.X;
+
+		public static int Dist2(this Point self, Point other) =>
+			(self.X - other.X).Sqr() + (self.Y - other.Y).Sqr();
+
+		public static int Norm2(this Point self) => self.X * self.X + self.Y * self.Y;
+
+		public static float Norm(this Point self) => (float)Math.Sqrt(self.Norm2());
+
+		public static PointF Normalized(this Point self)
+		{
+			var norm = self.Norm();
+			return new PointF(self.X / norm, self.Y / norm);
+		}
 	}
 }

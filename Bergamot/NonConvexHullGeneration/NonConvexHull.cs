@@ -165,6 +165,97 @@ namespace Bergamot.NonConvexHullGeneration
 				SegmentCoefficient * (ulong)segments.Count + TransparentPixelsCoefficient * (ulong)(area - imageArea));
 		}
 
+		private static Point Intersect(Point a1, Point a2, Point b1, Point b2)
+		{
+			var denominator = (a1.X - a2.X) * (b1.Y - b2.Y) - (a1.Y - a2.Y) * (b1.X - b2.X);
+			return denominator == 0 ? Point.Empty : new Point(
+				(int) Math.Round(
+				((a1.X * a2.Y - a1.Y * a2.X) * (b1.X - b2.X) - (b1.X * b2.Y - b1.Y * b2.X) * (a1.X - a2.X)) /
+				(double)denominator),
+				(int)Math.Round(
+					((a1.X * a2.Y - a1.Y * a2.X) * (b1.Y - b2.Y) - (b1.X * b2.Y - b1.Y * b2.X) * (a1.Y - a2.Y)) /
+					(double)denominator)
+			);
+		}
+
+		public static bool Check(Bitmap image, Point p1, Point p2, Point p3, Point p4)
+		{
+			if (p2.Dist2(p1) <= 4000 && p3.Dist2(p4) <= 4000) {
+				var intersection = Intersect(p1, p2, p3, p4);
+				if (
+					!intersection.IsEmpty && intersection.X < image.Width - 1 && intersection.X >= 0 &&
+					intersection.Y < image.Height - 1 && intersection.Y >= 0
+				) {
+					var v1 = p2.Sub(p1);
+					var v2 = p3.Sub(p4);
+					var cross = v1.Cross(v2);
+					var angle = Math.Acos(v1.Normalized().Dot(v2.Normalized())) * 57.2958f;
+					if (!IsOnNormalDirection(p1, p4, intersection)) {
+						return true;
+					}
+				}
+			}
+			return false;
+		}
+
+		public static float Area(Point v1, Point v2, Point v3)
+		{
+			return (float)(v2.X - v1.X) * (v3.Y - v1.Y) -
+				(v2.Y - v1.Y) * (v3.X - v1.X);
+		}
+
+		private static bool Intersect(Point p1, Point p2, Point p3, Point p4, out double t, out double u, out Point i)
+		{
+			// p + tr = q + us
+			Point p = p1, q = p3, r = p2.Sub(p1), s = p4.Sub(p3);
+			u = -100;
+			t = -100;
+			i = Point.Empty;
+			var denominator = r.Cross(s);
+			var qsubp = q.Sub(p);
+			var uNumerator = qsubp.Cross(r);
+			if (denominator == 0) {
+				return false;
+				//return uNumerator == 0; // true if collinear false if parallel
+			}
+			u = uNumerator / (double)denominator;
+			t = qsubp.Cross(s) / (double)denominator;
+			i = new Point((int)Math.Round(p.X + t * r.X), (int)Math.Round(p.Y + t * r.Y));
+			return true;
+		}
+
+		public static List<Point> UpdateHull2(Bitmap image, List<Point> boundaries)
+		{
+			var updated = new List<Point>();
+			int i;
+			for (i = 0; i < boundaries.Count - 4; i++) {
+				Point p1 = boundaries[i], p2 = boundaries[(i + 1) % boundaries.Count],
+					  p3 = boundaries[(i + 2) % boundaries.Count], p4 = boundaries[(i + 3) % boundaries.Count];
+				updated.Add(boundaries[i]);
+				if (/*p2.Dist2(p3) <= 4000*//*p2.Dist2(p1) <= 4000 && p3.Dist2(p4) <= 4000*/true) {
+					if (
+						Intersect(p1, p2, p3, p4, out var t, out var u, out var intersection) && intersection.X < image.Width - 1 &&
+						intersection.X >= 0 && intersection.Y < image.Height - 1 && intersection.Y >= 0
+					) {
+						var line = p3.Sub(p2);
+						var v2 = intersection.Sub(p2);
+						//var cross = v1.Cross(v2);
+						//var angle = Math.Acos(v1.Normalized().Dot(v2.Normalized())) * 57.2958f;
+						if (t >= 1 && u <= 0 && image.GetPixel(intersection.X, intersection.Y).A == 0) {//IsOnNormalDirection(p2, p3, intersection)) {
+							updated.Add(intersection);
+							i += 2;
+						}
+					}
+				}
+			}
+			if (i - 1 < boundaries.Count) {
+				for (i = i - 1; i < boundaries.Count; i++) {
+					updated.Add(boundaries[i]);
+				}
+			}
+			return updated;
+		}
+
 		public static List<Point> GetExtremumPoints(Bitmap image, List<Point> boundaries, FiniteDifferenceType fdt = FiniteDifferenceType.Right)
 		{
 			var res = new List<Point>();
