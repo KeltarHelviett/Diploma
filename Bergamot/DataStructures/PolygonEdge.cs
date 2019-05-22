@@ -14,6 +14,12 @@ namespace Bergamot.DataStructures
 		public PolygonEdge Next;
 		public int Orientation;
 
+		public PolygonEdge(PointF v1, PointF v2)
+		{
+			V1 = v1;
+			V2 = v2;
+		}
+
 		public PolygonEdge(int i, ConnectedTriangle t)
 		{
 			V1 = t.Vertices[i].Value;
@@ -91,6 +97,19 @@ namespace Bergamot.DataStructures
 			unchecked {
 				return (V1.X.GetHashCode() ^ V2.X.GetHashCode()) + (V1.Y.GetHashCode() ^ V2.Y.GetHashCode());
 			}
+		}
+
+		public PolygonEdge Flip()
+		{
+			var tmp = V1;
+			V1 = V2;
+			V2 = tmp;
+			return this;
+		}
+
+		public PolygonEdge Clone()
+		{
+			return new PolygonEdge(V1, V2) { Next = Next, Orientation = Orientation, Triangle = Triangle };
 		}
 	}
 }

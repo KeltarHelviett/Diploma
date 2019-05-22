@@ -121,6 +121,16 @@ namespace Bergamot.DataStructures
 				if (Triangles[i] != null && !ReferenceEquals(Triangles[i].Triangles[Orientations[i]], this)) {
 					return false;
 				}
+				if (Triangles[i] != null) {
+					var adj = Triangles[i];
+					var o = Orientations[i];
+					if (
+						adj.Vertices[(o + 1) % 3] != Vertices[(i + 2) % 3] ||
+						adj.Vertices[(o + 2) % 3] != Vertices[(i + 1) % 3]
+					) {
+						return false;
+					}
+				}
 			}
 			return true;
 		}
@@ -130,6 +140,29 @@ namespace Bergamot.DataStructures
 			for (int i = 0; i < 3; i++) {
 				if (Triangles[i] != null) {
 					Triangles[i].Triangles[Orientations[i]] = this;
+				}
+			}
+		}
+
+		public bool HasEdge(Segment edge)
+		{
+			for (int i = 0; i < 3; i++) {
+				PointF v1 = Vertices[i].Value, v2 = Vertices[(i + 1) % 3].Value;
+				if (v1 == edge.A && v2 == edge.B || v1 == edge.B && v2 == edge.A) {
+					return true;
+				}
+			}
+			return false;
+		}
+
+		public void Detach()
+		{
+			for (int i = 0; i < 3; i++) {
+				if (Triangles[i] != null) {
+					if (ReferenceEquals(Triangles[i].Triangles[Orientations[i]], this)) {
+						Triangles[i].Triangles[Orientations[i]] = null;
+					}
+					Triangles[i] = null;
 				}
 			}
 		}

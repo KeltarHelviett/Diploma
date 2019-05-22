@@ -26,5 +26,8 @@ namespace Bergamot.Extensions
 
 		public static float Dist2(this PointF self, PointF other) =>
 			(self.X - other.X).Sqr() + (self.Y - other.Y).Sqr();
+
+		public static bool InRect(this PointF self, PointF leftTop, PointF rightBot) =>
+			self.X >= leftTop.X && self.X <= rightBot.X && self.Y >= leftTop.Y && self.Y <= rightBot.Y;
 	}
 }
