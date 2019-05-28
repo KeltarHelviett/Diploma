@@ -52,6 +52,7 @@
     <Compile Include="DataStructures\Polygon.cs" />
     <Compile Include="DataStructures\PolygonEdge.cs" />
     <Compile Include="DataStructures\Triangle.cs" />
+    <Compile Include="DataStructures\Triangulation.cs" />
     <Compile Include="Extensions\BitmapExtensions.cs" />
     <Compile Include="Extensions\ColorExtensions.cs" />
     <Compile Include="Extensions\FloatExtensions.cs" />

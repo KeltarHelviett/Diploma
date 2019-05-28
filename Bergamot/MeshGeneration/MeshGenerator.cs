@@ -161,7 +161,7 @@ namespace Bergamot.MeshGeneration
 			}
 		}
 
-		private static void DebugTriangulationStep(ICollection<ConnectedTriangle> triangles, Polygon polygon,
+		private static void DebugTriangulationStep(ConnectedTriangle triangles, Polygon polygon,
 			Polygon polygon2, Segment segment, int step)
 		{
 			var black = new Pen(Color.Black);
@@ -204,14 +204,11 @@ namespace Bergamot.MeshGeneration
 			return polygon;
 		}
 
-		public /*private*/ static HashSet<ConnectedTriangle> BowyerWatson(List<PointF> points, List<ConnectedTriangle> supers)
+		public /*private*/ static ConnectedTriangle BowyerWatson(List<PointF> points, List<ConnectedTriangle> supers)
 		{
-			var triangulation = new HashSet<ConnectedTriangle>();
+			var triangulation = supers.First();
 			var badTriangles = new HashSet<ConnectedTriangle>();
-			foreach (var super in supers) {
-				triangulation.Add(super);
-			}
-			ConnectedTriangle lastAdded = triangulation.First();
+			ConnectedTriangle lastAdded = triangulation;
 			var j = 0;
 			foreach (var point in points) {
 				badTriangles.Clear();
@@ -231,12 +228,8 @@ namespace Bergamot.MeshGeneration
 				}
 				foreach (var badTriangle in badTriangles) {
 					badTriangle.Detach();
-					triangulation.Remove(badTriangle);
 				}
 				lastAdded = triangles[0];
-				foreach (var triangle in triangles) {
-					triangulation.Add(triangle);
-				}
 				if (Options.Instance.RuntimeChecks) {
 					//DebugTriangulationStep(point, triangulation, j++);
 					//ShowPolygon(polygon, point);
@@ -246,7 +239,7 @@ namespace Bergamot.MeshGeneration
 			if (Options.Instance.RuntimeChecks) {
 				//Debug.Assert(CheckDelaunayProperty(triangulation), "Triangulation doesn't satisfy Delaunay property!");
 			}
-			return triangulation;
+			return lastAdded;
 		}
 
 		private static bool CheckDelaunayProperty(ICollection<ConnectedTriangle> triangulation)
@@ -296,17 +289,16 @@ namespace Bergamot.MeshGeneration
 			};
 		}
 
-		public static ICollection<ConnectedTriangle> Delaunay(List<Point> points) =>
+		public static ConnectedTriangle Delaunay(List<Point> points) =>
 			BowyerWatson(points.Select(p => new PointF(p.X, p.Y)).ToList(), SuperSquare(points));
 
-		public static ICollection<ConnectedTriangle> Delaunay(Bitmap bitmap, List<Point> points) =>
+		public static ConnectedTriangle Delaunay(Bitmap bitmap, List<Point> points) =>
 			BowyerWatson(points.Select(p => new PointF(p.X, p.Y)).ToList(), SuperSquare(bitmap));
 
-		public static (ConnectedTriangle, Polygon, Polygon, int) FindStartTriangle(HashSet<ConnectedTriangle> triangulation,
-			Segment segment, ConnectedTriangle searchStart = null)
+		public static (ConnectedTriangle, Polygon, Polygon, int) FindStartTriangle( Segment segment, ConnectedTriangle searchStart)
 		{
 			var queue = new Queue<(ConnectedTriangle, int)>();
-			queue.Enqueue((FindTriangle(searchStart ?? triangulation.First(), segment.A), -1));
+			queue.Enqueue((FindTriangle(searchStart, segment.A), -1));
 			var hasEdge = false;
 			// Vertex that is opposite to the edge of intersection
 			int vertexIndex = -1;
@@ -357,8 +349,7 @@ namespace Bergamot.MeshGeneration
 		}
 
 		// returns last triangle on the way so the next step can begin from the last end
-		public static ConnectedTriangle Traverse(Polygon polygon, Polygon polygon2, Segment segment, ConnectedTriangle triangle,
-			int cameFrom, HashSet<ConnectedTriangle> triangulation)
+		public static ConnectedTriangle Traverse(Polygon polygon, Polygon polygon2, Segment segment, ConnectedTriangle triangle, int cameFrom)
 		{
 			while (true) {
 				var ok = false;
@@ -372,7 +363,6 @@ namespace Bergamot.MeshGeneration
 						// than finish the polygon and split AB edge to Ap and pB
 						// and repeat the same procedure for new edge
 						// If p == B than complete polygon and stop traversing
-						triangulation.Remove(triangle);
 						if (p == segment.B) {
 							polygon.PushBack(new PolygonEdge((cameFrom + 2) % 3, triangle));
 							polygon2.PushFront(new PolygonEdge(cameFrom, triangle));
@@ -384,7 +374,6 @@ namespace Bergamot.MeshGeneration
 							ShowPolygon(polygon, segment.A);
 							var tp = polygon.Triangulate();
 							foreach (var t in tp) {
-								triangulation.Add(t);
 								if (t.Contains(segment.A) && t.Contains(segment.B)) {
 									last = t;
 								}
@@ -392,7 +381,6 @@ namespace Bergamot.MeshGeneration
 							ConnectedTriangle last2 = null;
 							var tp2 = polygon2.Triangulate();
 							foreach (var t in tp2) {
-								triangulation.Add(t);
 								if (t.Contains(segment.A) && t.Contains(segment.B)) {
 									last2 = t;
 								}
@@ -407,13 +395,13 @@ namespace Bergamot.MeshGeneration
 							last2.Triangles[k] = last;
 							last.Triangles[i] = last2;
 							Debug.Assert(last2.SelfCheck() && last.SelfCheck());
-							//foreach (var t in tp) {
-							//	foreach (var tt in t.Triangles) {
-							//		if (tt == null) {
-							//			Console.WriteLine("Warn");
-							//		}
-							//	}
-							//}
+							foreach (var t in tp) {
+								foreach (var tt in t.Triangles) {
+									if (tt == null) {
+										Console.WriteLine("Warn");
+									}
+								}
+							}
 							return last;
 						}
 						for (int i = 0; i < 3; i++) {
@@ -421,36 +409,40 @@ namespace Bergamot.MeshGeneration
 								polygon.PushBack(new PolygonEdge((cameFrom + 2) % 3, triangle));
 								polygon2.PushFront(new PolygonEdge(cameFrom, triangle));
 								polygon.PushBack(new PolygonEdge(triangle.Vertices[i].Value, segment.A));
-								polygon2.PushFront(new PolygonEdge(segment.A, triangle.Vertices[i].Value));
+								polygon2.PushFront(new PolygonEdge(triangle.Vertices[i].Value, segment.A));
 								polygon.TryClose();
 								Debug.Assert(polygon.TryClose());
 								ShowPolygon(polygon, segment.A);
 								ConnectedTriangle last = null, last2 = null;
-								foreach (var t in polygon.Triangulate()) {
-									triangulation.Add(t);
+								var tp = polygon.Triangulate();
+								foreach (var t in tp) {
+									if (t.Contains(segment.A) && t.Contains(segment.B)) {
+										last = t;
+									}
 								}
-								foreach (var t in polygon2.Triangulate()) {
-									triangulation.Add(t);
+								var tp2 = polygon2.Triangulate();
+								foreach (var t in tp2) {
+									if (t.Contains(segment.A) && t.Contains(segment.B)) {
+										last2 = t;
+									}
 								}
 								Debug.Assert(last.Contains(segment.A) && last.Contains(segment.B) &&
 								             last2.Contains(segment.A) && last2.Contains(segment.B));
 								var l = (Array.IndexOf(last.Vertices, segment.A) + 1) % 3;
-								var k = (Array.IndexOf(last2.Vertices, triangle.Vertices[i].Value) + 1) % 3;
+								var k = (Array.IndexOf(last2.Vertices, segment.B) + 1) % 3;
 								last2.Orientations[k] = l;
 								last.Orientations[l] = k;
 								last2.Triangles[k] = last;
 								last.Triangles[l] = last2;
 								Debug.Assert(last2.SelfCheck() && last.SelfCheck());
 								var s = new Segment(new Point((int)p.X, (int)p.Y), segment.B);
-								var (start, newPolygon, newPolygon2, vi) = FindStartTriangle(triangulation, s);
+								var (start, newPolygon, newPolygon2, vi) = FindStartTriangle(s, last2);
 								if (newPolygon != null) {
-									var res = Traverse(newPolygon, newPolygon2, s, start.Triangles[vi], start.Orientations[vi],
-										triangulation);
+									var res = Traverse(newPolygon, newPolygon2, s, start.Triangles[vi], start.Orientations[vi]);
 									start.Detach();
-									triangulation.Remove(start);
 									return res;
 								}
-								return triangulation.First();
+								return last2;
 							}
 						}
 						// Otherwise we have intersection with edge
@@ -471,50 +463,45 @@ namespace Bergamot.MeshGeneration
 			}
 		}
 
-		public static ICollection<ConnectedTriangle> ConstrainedDelaunay(Bitmap bitmap, List<Segment> hull)
+		public static ConnectedTriangle ConstrainedDelaunay(Bitmap bitmap, List<Segment> hull)
 		{
 			var supers = SuperSquare(bitmap);
 			var triangulation = BowyerWatson(hull.Select(s => new PointF(s.A.X, s.A.Y)).ToList(), supers);
 			// Find any triangle that contains that first segment A point
-			var current = triangulation.First();
+			var current = triangulation;
 			var i = 0;
 			foreach (var segment in hull) {
-				var (start, polygon, polygon2, vertexIndex) = FindStartTriangle(triangulation, segment, current);
+				var (start, polygon, polygon2, vertexIndex) = FindStartTriangle(segment, current);
 				if (polygon != null) {
-					current = Traverse(polygon, polygon2, segment, start.Triangles[vertexIndex], start.Orientations[vertexIndex],
-						triangulation);
+					current = Traverse(polygon, polygon2, segment, start.Triangles[vertexIndex], start.Orientations[vertexIndex]);
 					start.Detach();
-					triangulation.Remove(start);
 				}
-				DebugTriangulationStep(triangulation, polygon, polygon2, segment, i++);
+				DebugTriangulationStep(current, polygon, polygon2, segment, i++);
 			}
-			triangulation.RemoveWhere(t => {
-				var res = supers.Any(s => s.Contains(t.V1.Value) || s.Contains(t.V2.Value) || s.Contains(t.V3.Value));
-				if (res) {
+			foreach (var t in current) {
+				if (supers.Any(s => s.Contains(t.V1.Value) || s.Contains(t.V2.Value) || s.Contains(t.V3.Value))) {
 					t.Detach();
 				}
-				return res;
-			});
-			return triangulation;
+			}
+			DebugTriangulationStep(current, null, null, new Segment(new Point(0, 0), new Point(0, 0)), i);
+			return current;
 		}
 
-		public static ICollection<ConnectedTriangle> ConstrainedDelaunay(List<PointF> hull, List<ConnectedTriangle> supers, List<Segment> constrains)
+		public static ConnectedTriangle ConstrainedDelaunay(List<PointF> hull, List<ConnectedTriangle> supers, List<Segment> constrains)
 		{
 			var triangulation = BowyerWatson(hull, supers);
 			var i = 0;
 			// Find any triangle that contains that first segment A point
-			var current = triangulation.First();
+			var current = triangulation;
 			foreach (var segment in constrains) {
-				var (start, polygon, polygon2, vertexIndex) = FindStartTriangle(triangulation, segment, current);
+				var (start, polygon, polygon2, vertexIndex) = FindStartTriangle(segment, current);
 				if (polygon != null) {
-					current = Traverse(polygon, polygon2, segment, start.Triangles[vertexIndex], start.Orientations[vertexIndex],
-						triangulation);
+					current = Traverse(polygon, polygon2, segment, start.Triangles[vertexIndex], start.Orientations[vertexIndex]);
 					start.Detach();
-					triangulation.Remove(start);
 				}
-				DebugTriangulationStep(triangulation, polygon, polygon2, segment, i++);
+				DebugTriangulationStep(current, polygon, polygon2, segment, i++);
 			}
-			return triangulation;
+			return current;
 		}
 	}
 }

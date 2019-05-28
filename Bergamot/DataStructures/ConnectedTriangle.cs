@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Collections;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Drawing;
 using System.Linq;
@@ -13,7 +15,7 @@ namespace Bergamot.DataStructures
 	// ith orientation is index of this triangle in
 	// triangles array of triangle that shares
 	// edge that is opposite to ith vertex
-	public class ConnectedTriangle
+	public class ConnectedTriangle : IEnumerable<ConnectedTriangle>
 	{
 		public PointF?[] Vertices = new PointF?[3];
 		public ConnectedTriangle[] Triangles = new ConnectedTriangle[3];
@@ -165,6 +167,27 @@ namespace Bergamot.DataStructures
 					Triangles[i] = null;
 				}
 			}
+		}
+
+		public IEnumerator<ConnectedTriangle> GetEnumerator()
+		{
+			var queue = new Queue<ConnectedTriangle>();
+			var used = new HashSet<ConnectedTriangle>() { this };
+			queue.Enqueue(this);
+			while (queue.Count > 0) {
+				var t = queue.Dequeue();
+				yield return t;
+				for (int i = 0; i < 3; i++) {
+					if (t.Triangles[i] != null && used.Add(t.Triangles[i])) {
+						queue.Enqueue(t.Triangles[i]);
+					}
+				}
+			}
+		}
+
+		IEnumerator IEnumerable.GetEnumerator()
+		{
+			return GetEnumerator();
 		}
 	}
 }

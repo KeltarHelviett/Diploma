@@ -36,7 +36,7 @@ namespace Bergamot
 			}
 		}
 
-		public static void ShowMesh(Bitmap image, ICollection<ConnectedTriangle> triangles, Pen pen)
+		public static void ShowMesh(Bitmap image, IEnumerable<ConnectedTriangle> triangles, Pen pen)
 		{
 			using (var g = Graphics.FromImage(image)) {
 				foreach (var triangle in triangles) {
